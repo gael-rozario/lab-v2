@@ -1,0 +1,7 @@
+**/.terraform/
+**/.terraform*
+**/.terragrunt-cache/
+**/backend_override.tf
+**/versions_gen.tf
+**/providers_gen.tf
+**/terraform.tfvars
