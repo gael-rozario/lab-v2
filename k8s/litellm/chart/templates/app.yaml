@@ -1,0 +1,92 @@
+{{- $config := printf "model_list:\n  - model_name: %s\n    litellm_params:\n      model: ollama_chat/%s\n      api_base: %s\ngeneral_settings:\n  master_key: os.environ/LITELLM_MASTER_KEY\nlitellm_settings:\n  callbacks: [\"prometheus\"]\n  require_auth_for_metrics_endpoint: false\n" .Values.modelName .Values.ollama.model .Values.ollama.endpoint -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+data:
+  config.yaml: |
+{{ $config | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+      annotations:
+        checksum/config: {{ $config | sha256sum }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      containers:
+        - name: litellm
+          image: {{ .Values.image }}
+          args: ["--config", "/etc/litellm/config.yaml", "--port", "{{ .Values.port }}"]
+          ports:
+            - containerPort: {{ .Values.port }}
+          env:
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.masterKeySecret.name }}
+                  key: {{ .Values.masterKeySecret.key }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/litellm
+          readinessProbe:
+            httpGet:
+              path: /health/liveliness
+              port: {{ .Values.port }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/liveliness
+              port: {{ .Values.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  selector:
+    app: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: {{ .Values.port }}
+      targetPort: {{ .Values.port }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.name }}
+      namespace: {{ .Values.gateway.namespace }}
+  hostnames:
+    - {{ .Values.hostname | quote }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ .Release.Name }}
+          port: {{ .Values.port }}

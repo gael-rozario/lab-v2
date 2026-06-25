@@ -1,0 +1,10 @@
+image: nginx:1.27-alpine
+replicas: 1
+
+# Internal gateway this app's HTTPRoute attaches to (overridden by Terraform)
+gateway:
+  name: eg-internal
+  namespace: envoy-gateway-system
+
+# Hostname served via the gateway (overridden by Terraform)
+hostname: nginx.int.example.com

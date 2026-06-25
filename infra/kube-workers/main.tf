@@ -41,32 +41,20 @@ resource "libvirt_cloudinit_disk" "worker" {
   name = "${each.key}-cloudinit.iso"
   pool = var.storage_pool
 
-  user_data = <<-USERDATA
-    #cloud-config
-    hostname: ${each.key}
-    fqdn: ${each.key}.local
-    manage_etc_hosts: true
-
-    users:
-      - name: gael
-        sudo: ALL=(ALL) NOPASSWD:ALL
-        shell: /bin/bash
-        groups: [sudo]
-        lock_passwd: false
-        ssh_authorized_keys:
-          - ${local.ssh_public_key}
-
-    growpart:
-      mode: auto
-      devices: ["/"]
-
-    resize_rootfs: true
-  USERDATA
+  user_data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
+    hostname       = each.key
+    ssh_public_key = local.ssh_public_key
+    k3s_master_ip  = var.k3s_master_ip
+    k3s_token      = var.k3s_token
+    gpu            = each.value.gpu
+  })
 
   network_config = <<-NETCFG
     version: 2
     ethernets:
-      enp1s0:
+      id0:
+        match:
+          macaddress: "${each.value.mac}"
         dhcp4: true
   NETCFG
 }
@@ -75,12 +63,25 @@ resource "libvirt_domain" "worker" {
   for_each = var.workers
 
   name      = each.key
-  memory    = var.memory_mb
-  vcpu      = var.vcpus
+  memory    = each.value.gpu ? var.gpu_memory_mb : var.memory_mb
+  vcpu      = each.value.gpu ? var.gpu_vcpus : var.vcpus
   autostart = true
+
+  # GPU passthrough requires a Q35/PCIe topology and UEFI (OVMF) firmware so
+  # the card's large BARs can be mapped. Non-GPU workers keep provider defaults.
+  machine  = each.value.gpu ? "q35" : null
+  firmware = each.value.gpu ? var.ovmf_code_path : null
 
   cpu {
     mode = "host-passthrough"
+  }
+
+  dynamic "nvram" {
+    for_each = each.value.gpu ? [1] : []
+    content {
+      file     = "/var/lib/libvirt/qemu/nvram/${each.key}_VARS.fd"
+      template = var.ovmf_vars_template
+    }
   }
 
   cloudinit = libvirt_cloudinit_disk.worker[each.key].id
@@ -112,5 +113,19 @@ resource "libvirt_domain" "worker" {
     type        = "spice"
     listen_type = "address"
     autoport    = true
+  }
+
+  # PCI passthrough of the GPU — injected into the domain XML only for the
+  # GPU worker (the provider has no native hostdev block).
+  dynamic "xml" {
+    for_each = each.value.gpu ? [1] : []
+    content {
+      xslt = templatefile("${path.module}/gpu-hostdev.xsl.tftpl", {
+        domain    = var.gpu_pci.domain
+        bus       = var.gpu_pci.bus
+        slot      = var.gpu_pci.slot
+        functions = var.gpu_pci.functions
+      })
+    }
   }
 }

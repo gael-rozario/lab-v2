@@ -1,0 +1,69 @@
+#cloud-config
+hostname: ${hostname}
+fqdn: ${hostname}.local
+manage_etc_hosts: true
+
+users:
+  - name: gael
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    groups: [sudo]
+    lock_passwd: false
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+write_files:
+  - path: /etc/rancher/node/password
+    content: "${hostname}"
+    permissions: '0600'
+    owner: root:root
+
+growpart:
+  mode: auto
+  devices: ["/"]
+
+resize_rootfs: true
+
+runcmd:
+  - DEBIAN_FRONTEND=noninteractive apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y open-iscsi nfs-common cryptsetup
+  - systemctl daemon-reload
+  - echo iscsi_tcp >> /etc/modules
+  - modprobe iscsi_tcp
+  - systemctl enable iscsid
+  - systemctl start iscsid
+  - blkid /dev/vdb || mkfs.ext4 /dev/vdb
+  - mkdir -p /var/lib/longhorn
+  - mount /dev/vdb /var/lib/longhorn
+  - echo "/dev/vdb /var/lib/longhorn ext4 defaults 0 2" >> /etc/fstab
+%{ if gpu ~}
+  # --- NVIDIA GPU enablement (Blackwell GB206 needs the OPEN kernel modules, driver 570+) ---
+  # 1. DKMS build prerequisites
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential dkms
+  # 2. Latest cloud kernel + MATCHING headers. The base image ships an older kernel
+  #    than the archive keeps headers for, so "linux-headers-$(uname -r)" 404s and
+  #    DKMS can't build. Install the current kernel so headers are available, and we
+  #    reboot into it below.
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y linux-image-cloud-amd64 linux-headers-cloud-amd64
+  # 3. NVIDIA CUDA repo (recent open driver for Debian 12)
+  - curl -fsSL -o /tmp/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb
+  - dpkg -i /tmp/cuda-keyring.deb
+  # 4. NVIDIA container-toolkit repo (so k3s/containerd can expose the GPU to pods)
+  - curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey -o /usr/share/keyrings/nvidia-container-toolkit.asc
+  - curl -fsSL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit.asc] https://#g' > /etc/apt/sources.list.d/nvidia-container-toolkit.list
+  - DEBIAN_FRONTEND=noninteractive apt-get update
+  # 5. Open-module driver + container toolkit
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y nvidia-open nvidia-container-toolkit
+  # 6. Build the nvidia DKMS module for the newest installed kernel (the one we reboot
+  #    into) — the running base-image kernel has no headers, so build for the new one.
+  - KVER=$(ls -1 /lib/modules | grep -- '-cloud-amd64' | sort -V | tail -n1); dkms autoinstall -k "$KVER"
+%{ endif ~}
+  - curl -sfL https://get.k3s.io | K3S_URL=https://${k3s_master_ip}:6443 K3S_TOKEN=${k3s_token} sh -s - agent
+%{ if gpu ~}
+
+# Reboot once at the end so the freshly built NVIDIA kernel modules load
+power_state:
+  mode: reboot
+  message: Rebooting to load NVIDIA kernel modules
+  condition: true
+%{ endif ~}

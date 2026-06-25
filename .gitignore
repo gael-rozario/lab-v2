@@ -5,3 +5,11 @@
 **/versions_gen.tf
 **/providers_gen.tf
 **/terraform.tfvars
+
+# Never commit Terraform state (can embed secrets) or local secret files
+**/*.tfstate
+**/*.tfstate.*
+**/*.auto.tfvars
+**/.env
+**/*.kubeconfig
+kubeconfig

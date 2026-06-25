@@ -1,0 +1,6 @@
+apiVersion: v2
+name: litellm
+description: LiteLLM OpenAI-compatible auth proxy in front of Ollama
+type: application
+version: 0.1.4
+appVersion: "main-stable"

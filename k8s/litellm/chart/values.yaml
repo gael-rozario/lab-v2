@@ -1,0 +1,23 @@
+image: ghcr.io/berriai/litellm:main-stable
+replicas: 1
+port: 4000
+serviceAccountName: litellm
+
+# k8s Secret (synced from Vault by VSO) holding the master key
+masterKeySecret:
+  name: litellm-secret
+  key: master_key
+
+# Backend Ollama (ClusterIP)
+ollama:
+  endpoint: http://ollama.ollama.svc.cluster.local:11434
+  model: qwen2.5-coder:14b
+
+# Public model name clients request
+modelName: qwen2.5-coder
+
+# Internal gateway + hostname (overridden by Terraform)
+gateway:
+  name: eg-internal
+  namespace: envoy-gateway-system
+hostname: llm.int.example.com

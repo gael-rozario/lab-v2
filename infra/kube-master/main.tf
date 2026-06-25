@@ -36,7 +36,14 @@ locals {
     resize_rootfs: true
 
     runcmd:
-      - curl -sfL https://get.k3s.io | K3S_TOKEN=${var.k3s_token} sh -s - --disable traefik --disable servicelb
+      - DEBIAN_FRONTEND=noninteractive apt-get update
+      - DEBIAN_FRONTEND=noninteractive apt-get install -y open-iscsi nfs-common cryptsetup
+      - systemctl daemon-reload
+      - echo iscsi_tcp >> /etc/modules
+      - modprobe iscsi_tcp
+      - systemctl enable iscsid
+      - systemctl start iscsid
+      - curl -sfL https://get.k3s.io | K3S_TOKEN=${var.k3s_token} sh -s - --disable traefik --disable servicelb --disable local-storage
   USERDATA
 }
 

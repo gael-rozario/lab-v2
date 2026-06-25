@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Injected into the libvirt domain XML (only for the GPU worker) via the
+  dmacvicar/libvirt provider's `xml { xslt = ... }` override, because the
+  provider has no native PCI-passthrough block.
+
+  Adds one <hostdev> per GPU PCI function (GPU + its HDMI audio). The host
+  PCI address comes from `lspci -nnk` and is passed in from variables.
+-->
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="xml" encoding="UTF-8" indent="yes"/>
+
+  <!-- Identity transform: copy the generated XML through unchanged -->
+  <xsl:template match="@*|node()">
+    <xsl:copy>
+      <xsl:apply-templates select="@*|node()"/>
+    </xsl:copy>
+  </xsl:template>
+
+  <!-- Append the GPU functions inside <devices> -->
+  <xsl:template match="/domain/devices">
+    <xsl:copy>
+      <xsl:apply-templates select="@*|node()"/>
+%{ for fn in functions ~}
+      <hostdev mode="subsystem" type="pci" managed="yes">
+        <source>
+          <address domain="${domain}" bus="${bus}" slot="${slot}" function="${fn}"/>
+        </source>
+      </hostdev>
+%{ endfor ~}
+    </xsl:copy>
+  </xsl:template>
+
+  <!-- q35 has no IDE bus, and Debian 12's cloud-init NoCloud datasource does NOT
+       reliably pick up the seed off a SATA cdrom. So present the cloud-init ISO as
+       a read-only VIRTIO disk (scanned early and reliably); cloud-init still finds
+       the 'cidata' label on /dev/vdc. Replaces the whole cdrom device. -->
+  <xsl:template match="/domain/devices/disk[@device='cdrom']">
+    <disk type="file" device="disk">
+      <driver name="qemu" type="raw"/>
+      <xsl:copy-of select="source"/>
+      <target dev="vdc" bus="virtio"/>
+      <readonly/>
+      <serial>cloudinit</serial>
+    </disk>
+  </xsl:template>
+
+  <!-- Drop any explicit IDE controller (unsupported on q35) -->
+  <xsl:template match="/domain/devices/controller[@type='ide']"/>
+</xsl:stylesheet>

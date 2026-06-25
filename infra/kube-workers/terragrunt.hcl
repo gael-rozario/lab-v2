@@ -4,7 +4,7 @@ include "root" {
 
 inputs = {
   workers = {
-    worker1 = { mac = "52:54:00:4e:0b:04" }
+    worker1 = { mac = "52:54:00:4e:0b:04", gpu = true }
     worker2 = { mac = "52:54:00:07:41:56" }
     worker3 = { mac = "52:54:00:a1:b2:c3" }
   }
