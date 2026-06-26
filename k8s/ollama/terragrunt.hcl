@@ -12,7 +12,7 @@ inputs = {
   gpu_node       = "worker1"
   runtime_class  = "nvidia"
   model          = "gpt-oss:20b"
-  context_length = 16384
+  context_length = 65536
   storage_size   = "50Gi"
   storage_class  = "longhorn-r1"
 }
