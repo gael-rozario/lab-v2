@@ -1,0 +1,16 @@
+image: nousresearch/hermes-agent:latest
+serviceAccountName: hermes
+
+# OpenAI-compatible endpoint (LiteLLM) + model
+llmBaseUrl: http://litellm.litellm.svc.cluster.local:4000/v1
+model: gpt-oss
+
+# Telegram allowlist (comma-separated user ids) — overridden by Terraform
+telegramAllowedUsers: ""
+
+# k8s Secret (synced from Vault by VSO): keys llm_api_key + telegram_bot_token
+secretName: hermes-secret
+
+persistentVolume:
+  size: 5Gi
+  storageClass: longhorn

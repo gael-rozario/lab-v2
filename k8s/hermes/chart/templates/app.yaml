@@ -1,0 +1,94 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+data:
+  # ${VARS} are substituted by Hermes at runtime from the container env.
+  config.yaml: |
+    model:
+      provider: custom
+      base_url: {{ .Values.llmBaseUrl }}
+      api_key: ${CUSTOM_API_KEY}
+      model: {{ .Values.model }}
+    gateway:
+      platforms:
+        telegram:
+          extra:
+            status_indicator: true
+            rich_messages: true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ .Values.persistentVolume.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistentVolume.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      # Seed the IaC-managed config.yaml into the data dir (memories/sessions persist alongside it)
+      initContainers:
+        - name: seed-config
+          image: busybox:1.36
+          command: ["sh", "-c", "cp /config/config.yaml /opt/data/config.yaml"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: data
+              mountPath: /opt/data
+      containers:
+        - name: hermes
+          image: {{ .Values.image }}
+          args: ["gateway", "run"]
+          env:
+            - name: HERMES_HOME
+              value: /opt/data
+            - name: HERMES_PROVIDER
+              value: custom
+            - name: CUSTOM_BASE_URL
+              value: {{ .Values.llmBaseUrl | quote }}
+            - name: CUSTOM_MODEL
+              value: {{ .Values.model | quote }}
+            - name: TELEGRAM_ALLOWED_USERS
+              value: {{ .Values.telegramAllowedUsers | quote }}
+            - name: CUSTOM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: llm_api_key
+            - name: TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: telegram_bot_token
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-data
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-config
