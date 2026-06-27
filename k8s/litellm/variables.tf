@@ -27,21 +27,21 @@ variable "image" {
 }
 
 variable "model" {
-  description = "Backend Ollama model to route to"
+  description = "Backend model name served by llama.cpp (its --alias)"
   type        = string
-  default     = "qwen2.5-coder:14b"
+  default     = "gpt-oss"
 }
 
 variable "model_name" {
   description = "Public model name clients request"
   type        = string
-  default     = "qwen2.5-coder"
+  default     = "gpt-oss"
 }
 
-variable "ollama_endpoint" {
-  description = "In-cluster Ollama API endpoint"
+variable "backend_endpoint" {
+  description = "In-cluster OpenAI-compatible backend endpoint (llama.cpp /v1)"
   type        = string
-  default     = "http://ollama.ollama.svc.cluster.local:11434"
+  default     = "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
 }
 
 variable "gateway_name" {

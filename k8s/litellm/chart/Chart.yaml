@@ -1,6 +1,6 @@
 apiVersion: v2
 name: litellm
-description: LiteLLM OpenAI-compatible auth proxy in front of Ollama
+description: LiteLLM OpenAI-compatible auth proxy in front of llama.cpp
 type: application
-version: 0.1.4
+version: 0.1.9
 appVersion: "main-stable"

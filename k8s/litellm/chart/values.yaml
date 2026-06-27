@@ -8,13 +8,13 @@ masterKeySecret:
   name: litellm-secret
   key: master_key
 
-# Backend Ollama (ClusterIP)
-ollama:
-  endpoint: http://ollama.ollama.svc.cluster.local:11434
-  model: qwen2.5-coder:14b
+# Backend OpenAI-compatible server (llama.cpp, ClusterIP)
+backend:
+  endpoint: http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1
+  model: gpt-oss
 
 # Public model name clients request
-modelName: qwen2.5-coder
+modelName: gpt-oss
 
 # Internal gateway + hostname (overridden by Terraform)
 gateway:

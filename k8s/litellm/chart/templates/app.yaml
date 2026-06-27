@@ -1,4 +1,4 @@
-{{- $config := printf "model_list:\n  - model_name: %s\n    litellm_params:\n      model: ollama_chat/%s\n      api_base: %s\ngeneral_settings:\n  master_key: os.environ/LITELLM_MASTER_KEY\nlitellm_settings:\n  callbacks: [\"prometheus\"]\n  require_auth_for_metrics_endpoint: false\n" .Values.modelName .Values.ollama.model .Values.ollama.endpoint -}}
+{{- $config := printf "model_list:\n  - model_name: %s\n    litellm_params:\n      model: openai/%s\n      api_base: %s\n      api_key: \"sk-noauth\"\ngeneral_settings:\n  master_key: os.environ/LITELLM_MASTER_KEY\nlitellm_settings:\n  callbacks: [\"prometheus\"]\n  require_auth_for_metrics_endpoint: false\n" .Values.modelName .Values.backend.model .Values.backend.endpoint -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -87,6 +87,10 @@ spec:
         - path:
             type: PathPrefix
             value: /
+      # LLM responses (reasoning model + cold model load) can take minutes.
+      timeouts:
+        request: "600s"
+        backendRequest: "600s"
       backendRefs:
         - name: {{ .Release.Name }}
           port: {{ .Values.port }}

@@ -94,8 +94,8 @@ resource "helm_release" "litellm" {
     masterKeySecret:
       name: litellm-secret
       key: ${var.master_key_field}
-    ollama:
-      endpoint: ${var.ollama_endpoint}
+    backend:
+      endpoint: ${var.backend_endpoint}
       model: ${var.model}
     modelName: ${var.model_name}
     gateway:

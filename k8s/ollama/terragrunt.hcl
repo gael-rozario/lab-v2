@@ -11,8 +11,8 @@ inputs = {
   namespace      = "ollama"
   gpu_node       = "worker1"
   runtime_class  = "nvidia"
-  model          = "gpt-oss:20b"
-  context_length = 65536
+  model          = "qwen2.5-coder:14b-instruct"
+  context_length = 32768
   storage_size   = "50Gi"
   storage_class  = "longhorn-r1"
 }

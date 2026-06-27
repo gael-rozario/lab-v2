@@ -1,0 +1,21 @@
+image: ghcr.io/ggml-org/llama.cpp:server-cuda
+hfRepo: ggml-org/gpt-oss-20b-GGUF
+hfQuant: ""
+servedModelName: gpt-oss
+contextSize: "65536"
+# model-specific llama-server flags (overridden by Terraform per model)
+extraArgs:
+  - "--reasoning-format"
+  - "auto"
+  - "--temp"
+  - "1.0"
+  - "--top-p"
+  - "1.0"
+nGpuLayers: "99"
+runtimeClassName: nvidia
+gpuNodeLabel: nvidia.com/gpu.present
+port: 8080
+
+persistentVolume:
+  size: 25Gi
+  storageClass: longhorn-r1

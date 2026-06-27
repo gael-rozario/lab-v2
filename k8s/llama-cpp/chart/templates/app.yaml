@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-cache
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ .Values.persistentVolume.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistentVolume.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      runtimeClassName: {{ .Values.runtimeClassName }}
+      nodeSelector:
+        {{ .Values.gpuNodeLabel }}: "true"
+      containers:
+        - name: llama-cpp
+          image: {{ .Values.image }}
+          args:
+            - "-hf"
+            - "{{ .Values.hfRepo }}{{ if .Values.hfQuant }}:{{ .Values.hfQuant }}{{ end }}"
+            - "--alias"
+            - "{{ .Values.servedModelName }}"
+            # --jinja uses the model's embedded template + llama.cpp tool parsers
+            # (produces structured tool_calls).
+            - "--jinja"
+            # model-specific flags (reasoning/sampling/chat-template-kwargs)
+            {{- range .Values.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+            # one slot = one agent gets the full context (vs auto-splitting into 4)
+            - "--parallel"
+            - "1"
+            - "-c"
+            - "{{ .Values.contextSize }}"
+            - "-ngl"
+            - "{{ .Values.nGpuLayers }}"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "{{ .Values.port }}"
+          ports:
+            - containerPort: {{ .Values.port }}
+          env:
+            # where -hf downloads/caches the GGUF (onto the PVC)
+            - name: LLAMA_CACHE
+              value: /data
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: cache
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          startupProbe:
+            # First boot downloads the GGUF (~9 GB) then loads onto the GPU.
+            httpGet:
+              path: /health
+              port: {{ .Values.port }}
+            periodSeconds: 15
+            failureThreshold: 80
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-cache
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  selector:
+    app: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: {{ .Values.port }}
+      targetPort: {{ .Values.port }}
