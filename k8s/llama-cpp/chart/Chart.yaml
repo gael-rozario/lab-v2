@@ -2,5 +2,5 @@ apiVersion: v2
 name: llama-cpp
 description: llama.cpp OpenAI server (--jinja) serving a GGUF model with native tool-calling
 type: application
-version: 0.1.5
+version: 0.1.6
 appVersion: "server-cuda"
