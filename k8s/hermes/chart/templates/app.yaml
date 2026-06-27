@@ -10,6 +10,11 @@ data:
       base_url: {{ .Values.llmBaseUrl }}
       api_key: ${CUSTOM_API_KEY}
       model: {{ .Values.model }}
+      # LiteLLM doesn't expose the window via /v1/models, so Hermes can't
+      # auto-detect it and falls back to 131072, then overruns the backend.
+      # Pin it below the real backend window (the difference absorbs the tool
+      # schema tokens Hermes leaves out of its own estimate).
+      context_length: {{ .Values.contextLength }}
     gateway:
       platforms:
         telegram:

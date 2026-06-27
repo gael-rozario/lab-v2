@@ -21,6 +21,12 @@ variable "model" {
   default     = "gpt-oss"
 }
 
+variable "context_length" {
+  description = "Window Hermes declares; set below the backend context_size to absorb the ~14K tool-schema tokens Hermes omits from its own estimate"
+  type        = number
+  default     = 24576
+}
+
 variable "telegram_allowed_users" {
   description = "Comma-separated Telegram user IDs allowed to use the bot (your id from @userinfobot)"
   type        = string

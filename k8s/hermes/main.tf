@@ -88,6 +88,7 @@ resource "helm_release" "hermes" {
     serviceAccountName: hermes
     llmBaseUrl: ${var.llm_base_url}
     model: ${var.model}
+    contextLength: ${var.context_length}
     telegramAllowedUsers: "${var.telegram_allowed_users}"
     secretName: hermes-secret
     persistentVolume:
