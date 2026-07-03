@@ -8,24 +8,25 @@ include "k8s" {
 
 inputs = {
   namespace         = "llama-cpp"
-  hf_repo           = "unsloth/Qwen3.6-35B-A3B-GGUF"
+  hf_repo           = "unsloth/gemma-4-26B-A4B-it-GGUF"
   hf_quant          = "UD-IQ3_XXS"
-  served_model_name = "qwen3.6"
-  # Hermes HARD-rejects any context_length < 64000 at startup, so the backend
-  # must truly serve >=64K. This model's KV cache is small (heavy GQA): at 80K,
-  # q8 KV + flash attention + the IQ3 weights measure ~14-15GB on the GPU, which
-  # FITS on the 16GB card with no expert offload. (Full --cpu-moe was tried and
-  # removed: it works but tanks prefill to ~34 tok/s — a ~16 min wait on Hermes'
-  # ~33K prompt. If 80K ever OOMs, add "--n-cpu-moe", "8" to offload just a few
-  # expert layers rather than all of them.)
+  served_model_name = "gemma4"
+  # MoE analog of the prior qwen3.6 pick: 3.8B active / 25.2B total params,
+  # UD-IQ3_XXS weights measure ~11.4GB (near-identical to qwen3.6's 11.5GB at
+  # the same quant tier), leaving ~4.6GB of the 16GB card for KV cache + CUDA
+  # overhead. Unlike qwen3.6, Gemma 4's per-token KV-cache size on this card
+  # isn't verified yet, so context starts at Hermes' hard floor (64K) rather
+  # than the 80K margin qwen3.6 could prove out. Raise only after confirming
+  # VRAM headroom; if it doesn't fit, prefer "--no-kv-offload" (moves KV cache
+  # to system RAM, frees VRAM, costs throughput) over raising quant/dropping ngl.
   #
-  # 80K (not 64K): Hermes' token estimate runs ~14K low (it omits tool schemas),
-  # so its declared 64K window lands ~78K on the wire. The backend sits above
-  # that at 80K so real requests don't overrun.
-  context_size = 81920
+  # Requires a llama.cpp build with the Gemma 4 tool-call parser (PEP grammar,
+  # ggml-org/llama.cpp PR #21326 + tokenizer fix #21343) — merged well before
+  # this config was written, but if tool_calls don't come through structured,
+  # check the image tag is recent enough.
+  context_size = 65536
   extra_args = [
-    "--reasoning-format", "auto",
-    "--temp", "0.6", "--top-p", "0.95", "--top-k", "20",
+    "--temp", "1.0", "--top-p", "0.95", "--top-k", "64",
     "--flash-attn", "on",
     "--cache-type-k", "q8_0",
     "--cache-type-v", "q8_0",
