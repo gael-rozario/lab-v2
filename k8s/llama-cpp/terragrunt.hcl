@@ -24,7 +24,14 @@ inputs = {
   # ggml-org/llama.cpp PR #21326 + tokenizer fix #21343) — merged well before
   # this config was written, but if tool_calls don't come through structured,
   # check the image tag is recent enough.
-  context_size = 65536
+  #
+  # 81920 (not 64K): measured at 65536 the pod used 13.5GB/16GB, i.e. ~34.4KB
+  # of KV cache per token. Extrapolating linearly, 81920 lands at ~14.1GB,
+  # matching the same ~1.8GB safety margin qwen3.6 ran with at its 80K target
+  # (Hermes' declared 64K window lands ~78K on the wire once tool schemas are
+  # counted). Re-check nvidia-smi after applying — Gemma 4's real KV scaling
+  # past 64K wasn't independently confirmed before picking this number.
+  context_size = 81920
   extra_args = [
     "--temp", "1.0", "--top-p", "0.95", "--top-k", "64",
     "--flash-attn", "on",
