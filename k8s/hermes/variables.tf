@@ -22,9 +22,9 @@ variable "model" {
 }
 
 variable "context_length" {
-  description = "Window Hermes declares; set below the backend context_size to absorb the ~14K tool-schema tokens Hermes omits from its own estimate"
+  description = "Window Hermes declares; MUST be >= 64000 (Hermes hard-rejects less at startup). Keep below the backend context_size to absorb the ~14K tool-schema tokens Hermes omits from its own estimate"
   type        = number
-  default     = 24576
+  default     = 65536
 }
 
 variable "telegram_allowed_users" {

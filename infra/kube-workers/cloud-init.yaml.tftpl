@@ -58,7 +58,9 @@ runcmd:
   #    into) — the running base-image kernel has no headers, so build for the new one.
   - KVER=$(ls -1 /lib/modules | grep -- '-cloud-amd64' | sort -V | tail -n1); dkms autoinstall -k "$KVER"
 %{ endif ~}
-  - curl -sfL https://get.k3s.io | K3S_URL=https://${k3s_master_ip}:6443 K3S_TOKEN=${k3s_token} sh -s - agent
+  # GPU workers are tainted dedicated=ai:NoSchedule so only AI workloads (with a
+  # matching toleration) land there; everything else schedules on other nodes.
+  - curl -sfL https://get.k3s.io | K3S_URL=https://${k3s_master_ip}:6443 K3S_TOKEN=${k3s_token} sh -s - agent%{ if gpu ~} --node-taint dedicated=ai:NoSchedule%{ endif ~}
 %{ if gpu ~}
 
 # Reboot once at the end so the freshly built NVIDIA kernel modules load

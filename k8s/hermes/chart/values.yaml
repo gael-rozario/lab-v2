@@ -4,9 +4,10 @@ serviceAccountName: hermes
 # OpenAI-compatible endpoint (LiteLLM) + model
 llmBaseUrl: http://litellm.litellm.svc.cluster.local:4000/v1
 model: gpt-oss
-# Real usable window Hermes declares — set below the backend's context_size to
-# leave room for the ~14K of tool-schema tokens Hermes omits from its estimate.
-contextLength: 24576
+# Window Hermes declares — MUST be >= 64000 (Hermes hard-rejects less at
+# startup). Kept below the backend's context_size so the ~14K of tool-schema
+# tokens Hermes omits from its estimate don't overrun the real backend window.
+contextLength: 65536
 
 # Telegram allowlist (comma-separated user ids) — overridden by Terraform
 telegramAllowedUsers: ""

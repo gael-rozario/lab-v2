@@ -53,6 +53,13 @@ resource "helm_release" "nvidia_device_plugin" {
 
   values = [<<-YAML
     runtimeClassName: ${var.runtime_class}
+    # The GPU node is tainted dedicated=ai:NoSchedule; the device plugin MUST run
+    # there to advertise nvidia.com/gpu, so it tolerates the taint.
+    tolerations:
+      - key: dedicated
+        operator: Equal
+        value: ai
+        effect: NoSchedule
   YAML
   ]
 }

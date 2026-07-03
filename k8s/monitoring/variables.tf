@@ -44,6 +44,38 @@ variable "runtime_class" {
   default     = "nvidia"
 }
 
+variable "storage_class" {
+  description = "StorageClass for Prometheus + Grafana PVCs (Longhorn so the data survives reschedule onto worker2/3)"
+  type        = string
+  default     = "longhorn"
+}
+
+variable "prometheus_storage_size" {
+  description = "PVC size for Prometheus TSDB"
+  type        = string
+  default     = "20Gi"
+}
+
+variable "grafana_storage_size" {
+  description = "PVC size for Grafana (dashboards, sqlite db)"
+  type        = string
+  default     = "5Gi"
+}
+
+variable "gpu_taint" {
+  description = "Taint on the GPU node that AI workloads tolerate; key=value:effect"
+  type = object({
+    key    = string
+    value  = string
+    effect = string
+  })
+  default = {
+    key    = "dedicated"
+    value  = "ai"
+    effect = "NoSchedule"
+  }
+}
+
 variable "gpu_node_label" {
   description = "Node label that marks the GPU node (set by the device-plugin module)"
   type        = string

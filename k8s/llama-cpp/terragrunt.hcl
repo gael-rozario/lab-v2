@@ -11,12 +11,18 @@ inputs = {
   hf_repo           = "unsloth/Qwen3.6-35B-A3B-GGUF"
   hf_quant          = "UD-IQ3_XXS"
   served_model_name = "qwen3.6"
-  # 40K is the most this 16GB card holds with the IQ3 weights resident (~2.3GB
-  # free at 32K). q8 KV + flash attention keep the cache small. Hermes' baseline
-  # (system prompt + tool schemas) is ~33K, so 40K is the floor that seats it
-  # with a little working room; Hermes' own context_length is set ~14K lower to
-  # absorb the tool-schema tokens it doesn't count. If this OOMs, drop to 36864.
-  context_size = 40960
+  # Hermes HARD-rejects any context_length < 64000 at startup, so the backend
+  # must truly serve >=64K. This model's KV cache is small (heavy GQA): at 80K,
+  # q8 KV + flash attention + the IQ3 weights measure ~14-15GB on the GPU, which
+  # FITS on the 16GB card with no expert offload. (Full --cpu-moe was tried and
+  # removed: it works but tanks prefill to ~34 tok/s — a ~16 min wait on Hermes'
+  # ~33K prompt. If 80K ever OOMs, add "--n-cpu-moe", "8" to offload just a few
+  # expert layers rather than all of them.)
+  #
+  # 80K (not 64K): Hermes' token estimate runs ~14K low (it omits tool schemas),
+  # so its declared 64K window lands ~78K on the wire. The backend sits above
+  # that at 80K so real requests don't overrun.
+  context_size = 81920
   extra_args = [
     "--reasoning-format", "auto",
     "--temp", "0.6", "--top-p", "0.95", "--top-k", "20",

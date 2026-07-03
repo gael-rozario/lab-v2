@@ -30,6 +30,13 @@ spec:
       runtimeClassName: {{ .Values.runtimeClassName }}
       nodeSelector:
         {{ .Values.gpuNodeLabel }}: "true"
+      # The GPU node is tainted dedicated=ai:NoSchedule so only AI workloads run
+      # there; the inference server tolerates it.
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: ai
+          effect: NoSchedule
       containers:
         - name: llama-cpp
           image: {{ .Values.image }}

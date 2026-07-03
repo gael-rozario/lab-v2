@@ -25,9 +25,30 @@ resource "helm_release" "kube_prometheus_stack" {
         podMonitorSelectorNilUsesHelmValues: false
         ruleSelectorNilUsesHelmValues: false
         retention: 15d
+        # Durable storage so the TSDB survives reschedule onto worker2/3.
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: ${var.storage_class}
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: ${var.prometheus_storage_size}
 
     grafana:
       adminPassword: ${var.grafana_admin_password}
+      # Persist dashboards/state across reschedule (no GPU node, so PVC on Longhorn).
+      persistence:
+        enabled: true
+        type: pvc
+        storageClassName: ${var.storage_class}
+        accessModes: ["ReadWriteOnce"]
+        size: ${var.grafana_storage_size}
+      # RWO Longhorn volume can only attach to one node — Recreate kills the old
+      # pod (releasing the volume) before the new one starts, avoiding the
+      # Multi-Attach deadlock a RollingUpdate causes when the pod moves nodes.
+      deploymentStrategy:
+        type: Recreate
       service:
         type: ClusterIP
       ingress:
@@ -71,6 +92,12 @@ resource "helm_release" "dcgm_exporter" {
     runtimeClassName: ${var.runtime_class}
     nodeSelector:
       ${var.gpu_node_label}: "true"
+    # DCGM scrapes the GPU, so it must run ON the tainted GPU node.
+    tolerations:
+      - key: ${var.gpu_taint.key}
+        operator: Equal
+        value: ${var.gpu_taint.value}
+        effect: ${var.gpu_taint.effect}
     serviceMonitor:
       enabled: true
   YAML

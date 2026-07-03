@@ -17,4 +17,13 @@ resource "helm_release" "longhorn" {
     name  = "persistence.defaultClassReplicaCount"
     value = tostring(var.replica_count)
   }
+
+  # worker1 (GPU node) is tainted dedicated=ai:NoSchedule. Longhorn must tolerate
+  # it so its manager/instance-manager keep running there (worker1 is a storage
+  # node — /dev/vdb). NOTE: Longhorn only applies a taint-toleration change when
+  # NO volumes are attached, so scale llama-cpp to 0 before applying this.
+  set {
+    name  = "defaultSettings.taintToleration"
+    value = "dedicated=ai:NoSchedule"
+  }
 }
