@@ -10,9 +10,18 @@ inputs = {
   namespace          = "litellm"
   internal_subdomain = "int"
   host_prefix        = "llm"
-  model              = "gemma4"
-  model_name         = "gemma4"
-  backend_endpoint   = "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
+  models = [
+    {
+      name     = "gemma4"
+      model    = "gemma4"
+      endpoint = "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
+    },
+    {
+      name     = "nomic-embed-text"
+      model    = "nomic-embed-text"
+      endpoint = "http://llama-cpp-embed.llama-cpp-embed.svc.cluster.local:8080/v1"
+    },
+  ]
   gateway_name       = "eg-internal"
   gateway_namespace  = "envoy-gateway-system"
   vault_secret_mount = "secret"

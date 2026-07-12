@@ -6,6 +6,8 @@ contextSize: "2048"
 extraArgs:
   - "--pooling"
   - "mean"
+  - "--ubatch-size"
+  - "2048"
 port: 8080
 
 persistentVolume:

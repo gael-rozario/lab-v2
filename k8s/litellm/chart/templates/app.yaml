@@ -1,4 +1,19 @@
-{{- $config := printf "model_list:\n  - model_name: %s\n    litellm_params:\n      model: openai/%s\n      api_base: %s\n      api_key: \"sk-noauth\"\ngeneral_settings:\n  master_key: os.environ/LITELLM_MASTER_KEY\nlitellm_settings:\n  callbacks: [\"prometheus\"]\n  require_auth_for_metrics_endpoint: false\n" .Values.modelName .Values.backend.model .Values.backend.endpoint -}}
+{{- define "litellm.config" -}}
+model_list:
+{{- range .Values.models }}
+  - model_name: {{ .name }}
+    litellm_params:
+      model: openai/{{ .model }}
+      api_base: {{ .endpoint }}
+      api_key: "sk-noauth"
+{{- end }}
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+litellm_settings:
+  callbacks: ["prometheus"]
+  require_auth_for_metrics_endpoint: false
+{{- end -}}
+{{- $config := include "litellm.config" . -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:

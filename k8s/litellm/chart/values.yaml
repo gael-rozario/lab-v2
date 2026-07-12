@@ -8,13 +8,11 @@ masterKeySecret:
   name: litellm-secret
   key: master_key
 
-# Backend OpenAI-compatible server (llama.cpp, ClusterIP)
-backend:
-  endpoint: http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1
-  model: gpt-oss
-
-# Public model name clients request
-modelName: gpt-oss
+# Backend OpenAI-compatible servers (llama.cpp, ClusterIP), one entry per model
+models:
+  - name: gpt-oss
+    model: gpt-oss
+    endpoint: http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1
 
 # Internal gateway + hostname (overridden by Terraform)
 gateway:

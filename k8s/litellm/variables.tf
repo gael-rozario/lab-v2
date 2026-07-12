@@ -26,22 +26,18 @@ variable "image" {
   default     = "ghcr.io/berriai/litellm:main-stable"
 }
 
-variable "model" {
-  description = "Backend model name served by llama.cpp (its --alias)"
-  type        = string
-  default     = "gpt-oss"
-}
-
-variable "model_name" {
-  description = "Public model name clients request"
-  type        = string
-  default     = "gpt-oss"
-}
-
-variable "backend_endpoint" {
-  description = "In-cluster OpenAI-compatible backend endpoint (llama.cpp /v1)"
-  type        = string
-  default     = "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
+variable "models" {
+  description = "Models to expose through this LiteLLM proxy, each backed by its own OpenAI-compatible llama.cpp endpoint."
+  type = list(object({
+    name     = string # public model name clients request
+    model    = string # backend model name served by llama.cpp (its --alias)
+    endpoint = string # in-cluster OpenAI-compatible backend endpoint (llama.cpp /v1)
+  }))
+  default = [{
+    name     = "gpt-oss"
+    model    = "gpt-oss"
+    endpoint = "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
+  }]
 }
 
 variable "gateway_name" {

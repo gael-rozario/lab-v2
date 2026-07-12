@@ -34,9 +34,9 @@ variable "context_size" {
 }
 
 variable "extra_args" {
-  description = "Model-specific llama-server flags. nomic-embed-text uses mean pooling."
+  description = "Model-specific llama-server flags. nomic-embed-text uses mean pooling; --ubatch-size raised to match context_size since the physical batch (default 512) caps single-request input size, not n_ctx."
   type        = list(string)
-  default     = ["--pooling", "mean"]
+  default     = ["--pooling", "mean", "--ubatch-size", "2048"]
 }
 
 variable "storage_size" {

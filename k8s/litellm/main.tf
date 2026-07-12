@@ -94,10 +94,7 @@ resource "helm_release" "litellm" {
     masterKeySecret:
       name: litellm-secret
       key: ${var.master_key_field}
-    backend:
-      endpoint: ${var.backend_endpoint}
-      model: ${var.model}
-    modelName: ${var.model_name}
+    models: ${jsonencode(var.models)}
     gateway:
       name: ${var.gateway_name}
       namespace: ${var.gateway_namespace}
