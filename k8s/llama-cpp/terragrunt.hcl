@@ -25,13 +25,14 @@ inputs = {
   # this config was written, but if tool_calls don't come through structured,
   # check the image tag is recent enough.
   #
-  # 81920 (not 64K): measured at 65536 the pod used 13.5GB/16GB, i.e. ~34.4KB
-  # of KV cache per token. Extrapolating linearly, 81920 lands at ~14.1GB,
-  # matching the same ~1.8GB safety margin qwen3.6 ran with at its 80K target
-  # (Hermes' declared 64K window lands ~78K on the wire once tool schemas are
-  # counted). Re-check nvidia-smi after applying — Gemma 4's real KV scaling
-  # past 64K wasn't independently confirmed before picking this number.
-  context_size = 81920
+  # 98304 (raised from 81920): confirmed via nvidia-smi that 81920 actually
+  # used 13817MiB/16311MiB, i.e. ~2.4GB of headroom — better than the ~1.8GB
+  # this config originally extrapolated, so real KV scaling on this card is
+  # cheaper than the linear estimate that picked 81920. Bumped by the same
+  # 16384-token step Hermes' declared window keeps below this value (see
+  # hermes/terragrunt.hcl), staying conservative rather than chasing the
+  # full headroom in one step. Re-check nvidia-smi after applying.
+  context_size = 98304
   extra_args = [
     "--temp", "1.0", "--top-p", "0.95", "--top-k", "64",
     "--flash-attn", "on",
