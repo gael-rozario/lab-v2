@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-cache
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ .Values.persistentVolume.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistentVolume.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      # No nodeSelector: schedules freely on worker2/worker3. worker1 is
+      # tainted dedicated=ai:NoSchedule and this pod has no toleration for
+      # it, so the scheduler naturally excludes it.
+      containers:
+        - name: llama-cpp-embed
+          image: {{ .Values.image }}
+          args:
+            - "-hf"
+            - "{{ .Values.hfRepo }}{{ if .Values.hfQuant }}:{{ .Values.hfQuant }}{{ end }}"
+            - "--alias"
+            - "{{ .Values.servedModelName }}"
+            - "--embedding"
+            {{- range .Values.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+            - "-c"
+            - "{{ .Values.contextSize }}"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "{{ .Values.port }}"
+          ports:
+            - containerPort: {{ .Values.port }}
+          env:
+            # where -hf downloads/caches the GGUF (onto the PVC)
+            - name: LLAMA_CACHE
+              value: /data
+          volumeMounts:
+            - name: cache
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          startupProbe:
+            # Small model (~300MB) — quick download, generous margin anyway.
+            httpGet:
+              path: /health
+              port: {{ .Values.port }}
+            periodSeconds: 10
+            failureThreshold: 30
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-cache
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  selector:
+    app: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: {{ .Values.port }}
+      targetPort: {{ .Values.port }}

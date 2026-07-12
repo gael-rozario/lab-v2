@@ -1,0 +1,13 @@
+image: ghcr.io/ggml-org/llama.cpp:server
+hfRepo: nomic-ai/nomic-embed-text-v1.5-GGUF
+hfQuant: F16
+servedModelName: nomic-embed-text
+contextSize: "2048"
+extraArgs:
+  - "--pooling"
+  - "mean"
+port: 8080
+
+persistentVolume:
+  size: 5Gi
+  storageClass: longhorn-r1
