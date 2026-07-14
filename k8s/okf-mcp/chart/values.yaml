@@ -1,0 +1,21 @@
+image: ghcr.io/gael-rozario/okf-mcp:latest
+serviceAccountName: okf-mcp
+notebookName: second-brain
+secretName: okf-mcp-secret
+
+persistentVolume:
+  size: 2Gi
+  storageClass: longhorn
+
+service:
+  port: 8080
+
+httpRoute:
+  enabled: true
+  # eg-internal (not eg): internal-only gateway, same one grafana.int uses.
+  # eg is the public gateway for portfolio/resume — wrong fit for an
+  # internal, no-auth service.
+  gatewayName: eg-internal
+  gatewayNamespace: envoy-gateway-system
+  hostnames:
+    - notes-mcp-sb.int.gaelrozario.com

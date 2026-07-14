@@ -1,0 +1,6 @@
+apiVersion: v2
+name: okf-mcp
+description: MCP server exposing OKF-formatted notebook operations for the gbrain notes vault
+type: application
+version: 0.1.1
+appVersion: "0.1.0"
