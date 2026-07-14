@@ -21,6 +21,10 @@ data:
           extra:
             status_indicator: true
             rich_messages: true
+    {{- with .Values.mcpServers }}
+    mcp_servers:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

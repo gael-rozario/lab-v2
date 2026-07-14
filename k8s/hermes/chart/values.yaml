@@ -18,3 +18,11 @@ secretName: hermes-secret
 persistentVolume:
   size: 5Gi
   storageClass: longhorn
+
+# Remote MCP servers Hermes connects to directly (mcp_servers in config.yaml).
+# okf_notes is internal/no-auth (reachable only inside the cluster network),
+# so no headers/auth block needed — access is controlled by which notebook
+# instance this URL points at, not per-request auth.
+mcpServers:
+  okf_notes:
+    url: "http://notes-mcp-sb.int.gaelrozario.com/mcp"
