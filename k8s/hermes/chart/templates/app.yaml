@@ -25,6 +25,8 @@ data:
     mcp_servers:
       {{- toYaml . | nindent 6 }}
     {{- end }}
+  SOUL.md: |
+{{ .Values.soul | indent 4 }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -56,11 +58,11 @@ spec:
         app: {{ .Release.Name }}
     spec:
       serviceAccountName: {{ .Values.serviceAccountName }}
-      # Seed the IaC-managed config.yaml into the data dir (memories/sessions persist alongside it)
+      # Seed the IaC-managed config.yaml + SOUL.md into the data dir (memories/sessions persist alongside them)
       initContainers:
         - name: seed-config
           image: busybox:1.36
-          command: ["sh", "-c", "cp /config/config.yaml /opt/data/config.yaml"]
+          command: ["sh", "-c", "cp /config/config.yaml /opt/data/config.yaml && cp /config/SOUL.md /opt/data/SOUL.md"]
           volumeMounts:
             - name: config
               mountPath: /config
