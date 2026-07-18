@@ -43,7 +43,9 @@ locals {
       - modprobe iscsi_tcp
       - systemctl enable iscsid
       - systemctl start iscsid
-      - curl -sfL https://get.k3s.io | K3S_TOKEN=${var.k3s_token} sh -s - --disable traefik --disable servicelb --disable local-storage
+      # Untainted by default in k3s (unlike kubeadm) — taint explicitly so
+      # regular workloads never land on master, including on worker failure.
+      - curl -sfL https://get.k3s.io | K3S_TOKEN=${var.k3s_token} sh -s - --disable traefik --disable servicelb --disable local-storage --disable coredns --node-taint node-role.kubernetes.io/control-plane:NoSchedule
   USERDATA
 }
 

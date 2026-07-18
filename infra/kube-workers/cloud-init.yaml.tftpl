@@ -60,7 +60,10 @@ runcmd:
 %{ endif ~}
   # GPU workers are tainted dedicated=ai:NoSchedule so only AI workloads (with a
   # matching toleration) land there; everything else schedules on other nodes.
-  - curl -sfL https://get.k3s.io | K3S_URL=https://${k3s_master_ip}:6443 K3S_TOKEN=${k3s_token} sh -s - agent%{ if gpu ~} --node-taint dedicated=ai:NoSchedule%{ endif ~}
+  # node.longhorn.io/create-default-disk=true + defaultSettings.createDefaultDiskLabeledNodes
+  # (k8s/longhorn/main.tf) scope Longhorn's default disk to workers only, since
+  # they're the ones with a dedicated /dev/vdb data disk — kube-master isn't.
+  - curl -sfL https://get.k3s.io | K3S_URL=https://${k3s_master_ip}:6443 K3S_TOKEN=${k3s_token} sh -s - agent --node-label node.longhorn.io/create-default-disk=true%{ if gpu ~} --node-taint dedicated=ai:NoSchedule%{ endif ~}
 %{ if gpu ~}
 
 # Reboot once at the end so the freshly built NVIDIA kernel modules load
