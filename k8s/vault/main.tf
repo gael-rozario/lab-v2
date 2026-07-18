@@ -78,6 +78,15 @@ resource "helm_release" "vault" {
       tlsDisable: false
 
     server:
+      # Pod anti-affinity (chart default) keeps replicas off each other's
+      # nodes. With only 4 nodes and master now tainted by default, the 3rd
+      # replica has nowhere left to go unless it can use the GPU worker.
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: ai
+          effect: NoSchedule
+
       ha:
         enabled: true
         replicas: ${var.replica_count}
