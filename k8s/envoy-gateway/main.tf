@@ -29,6 +29,20 @@ resource "helm_release" "envoy_gateway" {
   create_namespace = true
   wait             = true
   timeout          = 300
+
+  # Control-plane pod (the reconciler, not the data-plane Envoy proxies —
+  # those are covered separately via EnvoyProxy CRDs below). Untainted by
+  # default; add the toleration so it can recover onto master if every
+  # worker goes down.
+  values = [<<-YAML
+    deployment:
+      pod:
+        tolerations:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+  YAML
+  ]
 }
 
 resource "null_resource" "wildcard_cert" {
@@ -95,6 +109,22 @@ resource "null_resource" "gateway" {
       spec:
         controllerName: gateway.envoyproxy.io/gatewayclass-controller
       ---
+      apiVersion: gateway.envoyproxy.io/v1alpha1
+      kind: EnvoyProxy
+      metadata:
+        name: eg
+        namespace: $NAMESPACE
+      spec:
+        provider:
+          type: Kubernetes
+          kubernetes:
+            envoyDeployment:
+              pod:
+                tolerations:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: Exists
+                    effect: NoSchedule
+      ---
       apiVersion: gateway.networking.k8s.io/v1
       kind: Gateway
       metadata:
@@ -102,6 +132,11 @@ resource "null_resource" "gateway" {
         namespace: $NAMESPACE
       spec:
         gatewayClassName: eg
+        infrastructure:
+          parametersRef:
+            group: gateway.envoyproxy.io
+            kind: EnvoyProxy
+            name: eg
         listeners:
           - name: http
             protocol: HTTP
@@ -203,6 +238,12 @@ resource "null_resource" "internal_gateway" {
             envoyService:
               annotations:
                 metallb.universe.tf/loadBalancerIPs: "$INTERNAL_GATEWAY_IP"
+            envoyDeployment:
+              pod:
+                tolerations:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: Exists
+                    effect: NoSchedule
       ---
       apiVersion: gateway.networking.k8s.io/v1
       kind: Gateway

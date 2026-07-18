@@ -7,6 +7,20 @@ resource "helm_release" "metallb" {
   create_namespace = true
   wait             = true
   timeout          = 300
+
+  # speaker already tolerates the control-plane taint by default
+  # (speaker.tolerateMaster, chart default: true) since it must run on
+  # every node for L2 announcement to work. controller doesn't get that by
+  # default — add it explicitly so IP allocation can still recover onto
+  # master if every worker goes down.
+  values = [<<-YAML
+    controller:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+  YAML
+  ]
 }
 
 resource "null_resource" "metallb_config" {
