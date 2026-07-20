@@ -7,18 +7,25 @@ include "k8s" {
 }
 
 inputs = {
-  namespace         = "llama-cpp"
+  namespace = "llama-cpp"
+  # Pinned to what :server-cuda resolved to on 2026-07-20 - floating tag +
+  # default IfNotPresent pull policy meant the deployed binary was silently
+  # stuck on whatever the GPU node cached at first pull (2026-07-03), with no
+  # way to tell from code if newer llama.cpp fixes were actually live. Bump
+  # this digest deliberately (re-resolve `server-cuda` on GHCR) when you want
+  # to pull in upstream changes.
+  image             = "ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:b19cec9fe85f11d001f8911d87bc20a0479bfaf8ab99fd8dcef2258a4fd8c0ab"
   hf_repo           = "unsloth/gemma-4-26B-A4B-it-GGUF"
-  hf_quant          = "UD-IQ3_XXS"
+  hf_quant          = "UD-Q3_K_XL"
   served_model_name = "gemma4"
-  # MoE analog of the prior qwen3.6 pick: 3.8B active / 25.2B total params,
-  # UD-IQ3_XXS weights measure ~11.4GB (near-identical to qwen3.6's 11.5GB at
-  # the same quant tier), leaving ~4.6GB of the 16GB card for KV cache + CUDA
-  # overhead. Unlike qwen3.6, Gemma 4's per-token KV-cache size on this card
-  # isn't verified yet, so context starts at Hermes' hard floor (64K) rather
-  # than the 80K margin qwen3.6 could prove out. Raise only after confirming
-  # VRAM headroom; if it doesn't fit, prefer "--no-kv-offload" (moves KV cache
-  # to system RAM, frees VRAM, costs throughput) over raising quant/dropping ngl.
+  # MoE analog of the prior qwen3.6 pick: 3.8B active / 25.2B total params.
+  # Upgraded from UD-IQ3_XXS (11.4GB) to UD-Q3_K_XL (12.9GB, same 3-bit tier,
+  # less aggressive per-layer quantization) for better attention/MoE-routing
+  # precision - a misrouted token picks the wrong experts entirely, so routing
+  # precision matters more here than on a dense model. Confirmed via
+  # nvidia-smi at context_size=98304, ngl=99: 15461MiB/16311MiB, ~850MiB
+  # headroom - fits, but tight. Do not raise context_size further on this
+  # quant without dropping something else first (ngl, cache-type, or context).
   #
   # Requires a llama.cpp build with the Gemma 4 tool-call parser (PEP grammar,
   # ggml-org/llama.cpp PR #21326 + tokenizer fix #21343) — merged well before
@@ -39,8 +46,8 @@ inputs = {
     "--cache-type-k", "q8_0",
     "--cache-type-v", "q8_0",
   ]
-  n_gpu_layers      = 99
-  runtime_class     = "nvidia"
-  storage_size      = "50Gi"
-  storage_class     = "longhorn-r1"
+  n_gpu_layers  = 99
+  runtime_class = "nvidia"
+  storage_size  = "50Gi"
+  storage_class = "longhorn-r1"
 }
