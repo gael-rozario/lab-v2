@@ -13,3 +13,5 @@
 **/.env
 **/*.kubeconfig
 kubeconfig
+
+.worktrees/
