@@ -1,0 +1,17 @@
+image: ghcr.io/gael-rozario/gaelr-com-dind:latest
+
+persistentVolume:
+  size: 20Gi
+  storageClass: longhorn
+
+service:
+  port: 80
+
+httpRoute:
+  enabled: true
+  gatewayName: eg
+  gatewayNamespace: envoy-gateway-system
+  hostnames:
+    - gaelr.com
+    - dev.gaelr.com
+    - staging.gaelr.com
