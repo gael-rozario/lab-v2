@@ -164,6 +164,112 @@ resource "null_resource" "litellm_dashboard" {
   }
 }
 
+# Scrape envoy-gateway's control plane (reconciler/xDS) metrics — the helm chart
+# already ships a Service with a "metrics" port (19001, path /metrics).
+resource "null_resource" "envoy_gateway_servicemonitor" {
+  depends_on = [helm_release.kube_prometheus_stack]
+
+  triggers = {
+    namespace         = var.namespace
+    gateway_namespace = var.gateway_namespace
+  }
+
+  provisioner "local-exec" {
+    environment = {
+      NAMESPACE         = var.namespace
+      GATEWAY_NAMESPACE = var.gateway_namespace
+    }
+    command = <<-EOT
+      kubectl apply -f - <<EOF
+      apiVersion: monitoring.coreos.com/v1
+      kind: ServiceMonitor
+      metadata:
+        name: envoy-gateway
+        namespace: $NAMESPACE
+      spec:
+        namespaceSelector:
+          matchNames:
+            - $GATEWAY_NAMESPACE
+        selector:
+          matchLabels:
+            control-plane: envoy-gateway
+        endpoints:
+          - port: metrics
+            interval: 30s
+      EOF
+    EOT
+  }
+}
+
+# Scrape the data-plane Envoy proxies (traffic stats: status codes, latency,
+# upstream health) behind the eg/eg-internal Gateways. No stable metrics Service
+# exists for these pods (only the LB service on 80/443), so this is a PodMonitor
+# selecting on the proxy pod labels directly, matching every Gateway's proxy.
+resource "null_resource" "envoy_proxy_podmonitor" {
+  depends_on = [helm_release.kube_prometheus_stack]
+
+  triggers = {
+    namespace         = var.namespace
+    gateway_namespace = var.gateway_namespace
+  }
+
+  provisioner "local-exec" {
+    environment = {
+      NAMESPACE         = var.namespace
+      GATEWAY_NAMESPACE = var.gateway_namespace
+    }
+    command = <<-EOT
+      kubectl apply -f - <<EOF
+      apiVersion: monitoring.coreos.com/v1
+      kind: PodMonitor
+      metadata:
+        name: envoy-proxy
+        namespace: $NAMESPACE
+      spec:
+        namespaceSelector:
+          matchNames:
+            - $GATEWAY_NAMESPACE
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: envoy
+            app.kubernetes.io/component: proxy
+        podMetricsEndpoints:
+          - port: metrics
+            path: /stats/prometheus
+            interval: 30s
+      EOF
+    EOT
+  }
+}
+
+# Envoy Gateway Grafana dashboards — vendored from the upstream project's own
+# gateway-addons-helm chart (charts/gateway-addons-helm/dashboards/ in
+# envoyproxy/gateway). Both use a generic ${datasource} variable and
+# label_values(..., namespace) filtering, no hardcoded job names, so they work
+# unmodified against the ServiceMonitor/PodMonitor above.
+resource "null_resource" "envoy_gateway_dashboards" {
+  depends_on = [helm_release.kube_prometheus_stack]
+
+  triggers = {
+    namespace     = var.namespace
+    control_plane = filemd5("${path.module}/dashboards/envoy-gateway-global.json")
+    data_plane    = filemd5("${path.module}/dashboards/envoy-proxy-global.json")
+  }
+
+  provisioner "local-exec" {
+    environment = {
+      NAMESPACE = var.namespace
+    }
+    command = <<-EOT
+      kubectl create configmap envoy-gateway-dashboards -n "$NAMESPACE" \
+        --from-file=envoy-gateway-global.json=${path.module}/dashboards/envoy-gateway-global.json \
+        --from-file=envoy-proxy-global.json=${path.module}/dashboards/envoy-proxy-global.json \
+        --dry-run=client -o yaml | kubectl apply -f -
+      kubectl -n "$NAMESPACE" label configmap envoy-gateway-dashboards grafana_dashboard=1 --overwrite
+    EOT
+  }
+}
+
 # Expose Grafana on the internal gateway.
 resource "null_resource" "grafana_route" {
   depends_on = [helm_release.kube_prometheus_stack]
