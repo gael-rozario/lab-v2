@@ -34,4 +34,34 @@ resource "helm_release" "longhorn" {
     name  = "defaultSettings.taintToleration"
     value = "dedicated=ai:NoSchedule"
   }
+
+  # defaultSettings.taintToleration above only reaches the components Longhorn
+  # manages dynamically at runtime (instance-manager, engine-image). The
+  # longhorn-manager DaemonSet and CSI driver are rendered by the chart itself
+  # and need the same toleration set explicitly, or they can't be rescheduled
+  # onto worker1 (e.g. after a pod restart/node reboot).
+  values = [
+    yamlencode({
+      longhornManager = {
+        tolerations = [
+          {
+            key      = "dedicated"
+            operator = "Equal"
+            value    = "ai"
+            effect   = "NoSchedule"
+          }
+        ]
+      }
+      longhornDriver = {
+        tolerations = [
+          {
+            key      = "dedicated"
+            operator = "Equal"
+            value    = "ai"
+            effect   = "NoSchedule"
+          }
+        ]
+      }
+    })
+  ]
 }
