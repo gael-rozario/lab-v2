@@ -12,6 +12,34 @@ resource "helm_release" "cert_manager" {
     name  = "crds.enabled"
     value = "true"
   }
+
+  # None of the components tolerate the control-plane taint by default, so
+  # with every worker down cert-manager can't run anywhere and certs silently
+  # expire. Tolerate the taint and *prefer* master (soft, so the scheduler can
+  # still fall back to a worker if master can't take the pod).
+  values = [<<-YAML
+    tolerations: &cp
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+    affinity: &prefer-cp
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+                - key: node-role.kubernetes.io/control-plane
+                  operator: Exists
+    webhook:
+      tolerations: *cp
+      affinity: *prefer-cp
+    cainjector:
+      tolerations: *cp
+      affinity: *prefer-cp
+    startupapicheck:
+      tolerations: *cp
+  YAML
+  ]
 }
 
 resource "null_resource" "cloudflare_secret" {
