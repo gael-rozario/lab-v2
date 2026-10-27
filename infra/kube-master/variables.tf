@@ -1,3 +1,10 @@
+variable "master_libvirt_uri" {
+  # Not named libvirt_uri: the shell's TF_VAR_libvirt_uri (worker host) would
+  # take precedence over the terragrunt input and point this at the wrong host.
+  description = "libvirt connection URI for the master host (e.g. qemu+ssh://user@hostname/system)"
+  type        = string
+}
+
 variable "vm_name" {
   type    = string
 }

@@ -1,5 +1,5 @@
 provider "libvirt" {
-  uri = "qemu:///system"
+  uri = var.master_libvirt_uri
 }
 
 locals {
@@ -71,6 +71,13 @@ resource "libvirt_cloudinit_disk" "kube_master" {
   pool           = var.storage_pool
   user_data      = local.user_data
   network_config = local.network_config
+
+  # cloud-init only runs on first boot, so template edits can't reach the running
+  # VM anyway; replacing the ISO would force a domain replacement. Apply k3s flag
+  # changes on the node directly (/etc/systemd/system/k3s.service).
+  lifecycle {
+    ignore_changes = [user_data]
+  }
 }
 
 resource "libvirt_domain" "kube_master" {
