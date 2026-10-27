@@ -48,6 +48,6 @@ inputs = {
   ]
   n_gpu_layers  = 99
   runtime_class = "nvidia"
-  storage_size  = "50Gi"
+  storage_size  = "24Gi"
   storage_class = "longhorn-r1"
 }

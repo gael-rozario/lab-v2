@@ -26,6 +26,14 @@ resource "helm_release" "longhorn" {
     value = "true"
   }
 
+  # /dev/vdb is Longhorn-only, so the default 30% reservation (~46G/worker) was
+  # pure waste. Only applies to newly created default disks; existing worker
+  # disks were patched to the same 10% via nodes.longhorn.io spec.disks.
+  set {
+    name  = "defaultSettings.storageReservedPercentageForDefaultDisk"
+    value = "10"
+  }
+
   # worker1 (GPU node) is tainted dedicated=ai:NoSchedule. Longhorn must tolerate
   # it so its manager/instance-manager keep running there (worker1 is a storage
   # node — /dev/vdb). NOTE: Longhorn only applies a taint-toleration change when
