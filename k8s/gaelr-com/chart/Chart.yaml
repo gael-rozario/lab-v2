@@ -1,6 +1,0 @@
-apiVersion: v2
-name: gaelr-com
-description: Ubuntu LTS Docker-in-Docker pod for testing gaelr.com routing (Phase 1)
-type: application
-version: 0.1.0
-appVersion: "latest"
