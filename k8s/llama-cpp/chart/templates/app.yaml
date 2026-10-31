@@ -82,12 +82,14 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 15
           startupProbe:
-            # First boot downloads the GGUF (~9 GB) then loads onto the GPU.
+            # First boot downloads the GGUF then loads onto the GPU. 240 x 15s =
+            # 60 min: the 13.1GB Qwen3.8 download took >20 min (the old 80) and
+            # got killed just short of finishing.
             httpGet:
               path: /health
               port: {{ .Values.port }}
             periodSeconds: 15
-            failureThreshold: 80
+            failureThreshold: 240
       volumes:
         - name: cache
           persistentVolumeClaim:

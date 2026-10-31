@@ -12,8 +12,8 @@ inputs = {
   host_prefix        = "llm"
   models = [
     {
-      name     = "gemma4"
-      model    = "gemma4"
+      name     = "qwen3.8"
+      model    = "qwen3.8"
       endpoint = "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
     },
     {
