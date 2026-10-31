@@ -9,6 +9,8 @@
 # on other networks, and on Linux Tailscale's policy routing outranks local
 # routes, so a /24 would hijack the remote network's own 192.168.0.x hosts.
 #   192.168.0.244  eg-internal gateway -> every *.int.gaelrozario.com app
+#   192.168.0.243  Vault LB (vault.gaelrozario.com). Reads work from outside; writes can
+#                  still 307 to a pod IP and fail TLS -> `kubectl exec` into the active pod
 #   192.168.0.172  kube-master (k3s API :6443, existing kubeconfig works as-is)
 #   192.168.0.198  this host (SSH, jump host for anything else)
 # Default --snat-subnet-routes means the LAN needs no return routes.
@@ -26,7 +28,7 @@
 #   (at home: `sudo tailscale set --accept-routes=false` to go direct over LAN)
 set -euo pipefail
 
-ROUTES="${ROUTES:-192.168.0.244/32,192.168.0.172/32,192.168.0.198/32}"
+ROUTES="${ROUTES:-192.168.0.244/32,192.168.0.243/32,192.168.0.172/32,192.168.0.198/32}"
 
 # shellcheck source=/dev/null
 CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
