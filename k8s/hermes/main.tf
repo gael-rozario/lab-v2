@@ -1,6 +1,7 @@
 # Namespace + ServiceAccount + Vault auth + secret sync (VSO), mirroring litellm.
 # Vault role/policy/secret are configured out-of-band (see apply notes):
-#   secret/hermes -> { telegram_bot_token, llm_api_key }
+#   secret/hermes -> { telegram_bot_token, llm_api_key,
+#                      gh_app_id, gh_app_installation_id, gh_app_private_key }
 resource "null_resource" "vso" {
   triggers = {
     namespace   = var.namespace
@@ -89,6 +90,7 @@ resource "helm_release" "hermes" {
     llmBaseUrl: ${var.llm_base_url}
     model: ${var.model}
     contextLength: ${var.context_length}
+    reasoningEffort: "${var.reasoning_effort}"
     telegramAllowedUsers: "${var.telegram_allowed_users}"
     secretName: hermes-secret
     persistentVolume:

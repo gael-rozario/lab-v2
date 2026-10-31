@@ -15,6 +15,16 @@ data:
       # Pin it below the real backend window (the difference absorbs the tool
       # schema tokens Hermes leaves out of its own estimate).
       context_length: {{ .Values.contextLength }}
+    {{- with .Values.reasoningEffort }}
+    # Matched to the main model by provider=custom + identical base_url;
+    # extra_body is merged into every request to it (incl. aux tasks).
+    custom_providers:
+      - name: litellm
+        base_url: {{ $.Values.llmBaseUrl }}
+        extra_body:
+          chat_template_kwargs:
+            reasoning_effort: {{ . }}
+    {{- end }}
     gateway:
       platforms:
         telegram:
@@ -27,6 +37,13 @@ data:
     {{- end }}
   SOUL.md: |
 {{ .Values.soul | indent 4 }}
+  ghapp-token: |
+{{ .Files.Get "files/ghapp-token" | indent 4 }}
+  # reasoning-effort skill, seeded into /opt/data/skills/devops/ by seed-config
+  skill-reasoning-effort.md: |
+{{ .Files.Get "files/skills/reasoning-effort/SKILL.md" | indent 4 }}
+  skill-reasoning-effort-set_effort.py: |
+{{ .Files.Get "files/skills/reasoning-effort/scripts/set_effort.py" | indent 4 }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -56,13 +73,40 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}
+      annotations:
+        # config.yaml is only copied in by seed-config at pod start, so a
+        # ConfigMap change alone never reaches Hermes - roll the pod on any
+        # values change (a context_length bump once sat unapplied for days).
+        checksum/values: {{ .Values | toJson | sha256sum }}
+        # files/ (ghapp-token subPath mount, seeded skills) never live-updates -
+        # roll the pod on any edit there
+        checksum/files: {{ (.Files.Glob "files/**").AsConfig | sha256sum }}
     spec:
       serviceAccountName: {{ .Values.serviceAccountName }}
+      # Hermes drops from root to uid/gid 10000 at startup; fsGroup makes the
+      # 0440 secret files group-owned by 10000 so it can read the GitHub PEM.
+      # OnRootMismatch: skip the recursive chown of the Longhorn PVC on every start.
+      securityContext:
+        fsGroup: 10000
+        fsGroupChangePolicy: OnRootMismatch
       # Seed the IaC-managed config.yaml + SOUL.md into the data dir (memories/sessions persist alongside them)
       initContainers:
         - name: seed-config
           image: busybox:1.36
-          command: ["sh", "-c", "cp /config/config.yaml /opt/data/config.yaml && cp /config/SOUL.md /opt/data/SOUL.md"]
+          # Skill files are chowned to the hermes uid like the rest of skills/;
+          # config.yaml keeps its existing owner (cp onto an existing file).
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              cp /config/config.yaml /opt/data/config.yaml
+              cp /config/SOUL.md /opt/data/SOUL.md
+              s=/opt/data/skills/devops/reasoning-effort
+              mkdir -p $s/scripts
+              cp /config/skill-reasoning-effort.md $s/SKILL.md
+              cp /config/skill-reasoning-effort-set_effort.py $s/scripts/set_effort.py
+              chown -R 10000:10000 $s
           volumeMounts:
             - name: config
               mountPath: /config
@@ -93,10 +137,47 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secretName }}
                   key: telegram_bot_token
+            # GitHub App auth - IDs + PEM all live in Vault secret/hermes
+            - name: GH_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: gh_app_id
+            - name: GH_APP_INSTALLATION_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: gh_app_installation_id
+            - name: GH_APP_PRIVATE_KEY
+              value: /etc/hermes/github/hermes_app.pem
           volumeMounts:
             - name: data
               mountPath: /opt/data
+            # Own subdir: the image ships files in /etc/hermes (agent-browser
+            # path, provenance) that a mount on /etc/hermes itself would hide
+            - name: gh-app-key
+              mountPath: /etc/hermes/github
+              readOnly: true
+            # subPath so the rest of /usr/local/bin isn't shadowed
+            - name: ghapp-token
+              mountPath: /usr/local/bin/ghapp-token
+              subPath: ghapp-token
       volumes:
+        - name: ghapp-token
+          configMap:
+            name: {{ .Release.Name }}-config
+            defaultMode: 0755
+            items:
+              - key: ghapp-token
+                path: ghapp-token
+        # Only the PEM is projected (items), not every key in the Secret
+        - name: gh-app-key
+          secret:
+            secretName: {{ .Values.secretName }}
+            defaultMode: 0440
+            items:
+              - key: gh_app_private_key
+                path: hermes_app.pem
         - name: data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-data

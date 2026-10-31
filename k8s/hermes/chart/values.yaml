@@ -9,6 +9,12 @@ model: gpt-oss
 # tokens Hermes omits from its estimate don't overrun the real backend window.
 contextLength: 65536
 
+# Sent as chat_template_kwargs.reasoning_effort on every request via a
+# custom_providers extra_body entry. Hermes' /reasoning command is dropped for
+# custom endpoints (agent/reasoning_params.py only allows known hosts), so
+# this is the only way to steer effort. "" = llama-cpp server default.
+reasoningEffort: ""
+
 # Telegram allowlist (comma-separated user ids) — overridden by Terraform
 telegramAllowedUsers: ""
 
@@ -59,3 +65,13 @@ soul: |
   work, or past decisions, search the notes first — treat them as your
   primary source of truth over your own assumptions or memory. If the
   notes don't have an answer, say so rather than guessing.
+
+  ## GitHub
+
+  You authenticate to GitHub as a GitHub App, never with a personal token.
+  Run `ghapp-token` to mint an installation token (valid 1 hour) and mint a
+  fresh one per task rather than reusing an old one. The `gh` CLI is not
+  installed; use curl or git:
+    curl -H "Authorization: Bearer $(ghapp-token)" https://api.github.com/...
+    git clone https://x-access-token:$(ghapp-token)@github.com/<owner>/<repo>.git
+  Never print, log, or echo the token itself.

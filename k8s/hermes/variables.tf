@@ -27,6 +27,12 @@ variable "context_length" {
   default     = 65536
 }
 
+variable "reasoning_effort" {
+  description = "Effort sent as chat_template_kwargs.reasoning_effort on every request (low|medium|xhigh for the qwen template). Hermes' /reasoning is NOT forwarded to custom endpoints, so this is the only knob. Empty = use llama-cpp's server default"
+  type        = string
+  default     = ""
+}
+
 variable "telegram_allowed_users" {
   description = "Comma-separated Telegram user IDs allowed to use the bot (your id from @userinfobot)"
   type        = string

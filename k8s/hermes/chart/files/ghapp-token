@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Mint a GitHub App installation token (ghs_..., valid 1h) and print it.
+# Usage: GH_TOKEN=$(ghapp-token) ...   |   git clone https://x-access-token:$(ghapp-token)@github.com/owner/repo
+# Env: GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY (path to .pem)
+# Needs openssl + curl + python3 (the Hermes image has no jq).
+set -euo pipefail
+: "${GH_APP_ID:?}" "${GH_APP_INSTALLATION_ID:?}" "${GH_APP_PRIVATE_KEY:?}"
+
+b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+now=$(date +%s)
+header=$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)
+# iat backdated 60s for clock skew; GitHub caps exp at 10 min
+payload=$(printf '{"iss":"%s","iat":%d,"exp":%d}' "$GH_APP_ID" "$((now - 60))" "$((now + 540))" | b64url)
+sig=$(printf '%s' "$header.$payload" | openssl dgst -sha256 -sign "$GH_APP_PRIVATE_KEY" -binary | b64url)
+jwt="$header.$payload.$sig"
+
+resp=$(curl -sS --fail-with-body -X POST \
+  -H "Authorization: Bearer $jwt" \
+  -H "Accept: application/vnd.github+json" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  "https://api.github.com/app/installations/${GH_APP_INSTALLATION_ID}/access_tokens") || {
+  echo "ghapp-token: token request failed: $resp" >&2
+  exit 1
+}
+
+printf '%s' "$resp" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])'

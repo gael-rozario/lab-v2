@@ -26,8 +26,14 @@ inputs = {
   # (4 KV heads x 256 head_dim), the rest linear attention with a fixed-size
   # state - so KV is ~34KB/token at q8_0. Estimate: 13.1GB weights + ~2.2GB KV
   # at 65536 + ~1GB buffers = ~16.2GB, i.e. tight. 98304 (the gemma4 setting)
-  # would need ~3.4GB KV and does not fit. Re-check nvidia-smi after applying
-  # before raising.
+  # would need ~3.4GB KV and does not fit.
+  #
+  # 81920 (raised from 65536): Hermes hard-requires a >= 64000 window and sits
+  # 16384 below this (see hermes/terragrunt.hcl), so 65536 here was too small.
+  # Confirmed on worker1 after apply: ~15.5GB/16.3GB used, ~0.8GB headroom -
+  # fits, but don't raise further on q8 KV. If a heavy prefill ever OOMs,
+  # switch the KV cache to q4_0 (~halves KV) rather than lowering
+  # n_gpu_layers (dense model - CPU layers would crater speed).
   #
   # --no-mmproj: it's a VL model and -hf would otherwise pull + load the vision
   # projector into VRAM; nothing here sends images.
@@ -41,7 +47,7 @@ inputs = {
   # ~28 tok/s on the 5060 Ti) without answering; medium answered correctly in
   # ~630 tokens / ~23s. Clients can still override per request via
   # chat_template_kwargs.
-  context_size = 65536
+  context_size = 81920
   extra_args = [
     "--temp", "0.7", "--top-p", "0.95", "--top-k", "20", "--min-p", "0.0",
     "--chat-template-kwargs", "{\"reasoning_effort\":\"medium\"}",
