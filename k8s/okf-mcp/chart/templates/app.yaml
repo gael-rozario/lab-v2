@@ -46,14 +46,24 @@ spec:
               value: {{ .Values.service.port | quote }}
             - name: ALLOWED_HOSTS
               value: {{ .Values.httpRoute.hostnames | join "," | quote }}
-            - name: GITHUB_TOKEN
+            - name: GH_APP_ID
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secretName }}
-                  key: github_token
+                  key: gh_app_id
+            - name: GH_APP_INSTALLATION_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: gh_app_installation_id
+            - name: GH_APP_PRIVATE_KEY
+              value: /etc/okf-mcp/github/app.pem
           volumeMounts:
             - name: data
               mountPath: /data/gbrain
+            - name: gh-app-key
+              mountPath: /etc/okf-mcp/github
+              readOnly: true
           readinessProbe:
             tcpSocket:
               port: http
@@ -63,6 +73,14 @@ spec:
               port: http
             initialDelaySeconds: 15
       volumes:
+        # Only the PEM is projected (items), not every key in the Secret
+        - name: gh-app-key
+          secret:
+            secretName: {{ .Values.secretName }}
+            defaultMode: 0440
+            items:
+              - key: gh_app_private_key
+                path: app.pem
         - name: data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-data
