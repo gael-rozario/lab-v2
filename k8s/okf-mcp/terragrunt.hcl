@@ -10,6 +10,9 @@ inputs = {
   namespace     = "okf-mcp"
   notebook_name = "second-brain"
   hostname      = "notes-mcp-sb.int.gaelrozario.com"
+  # Pinned (not :latest) — okf-mcp-third-brain still tracks :latest with the
+  # pre-GitHub-App/pre-schema-alignment code; bump this per release.
+  image = "ghcr.io/gael-rozario/okf-mcp:sync-fa24f89"
 
   storage_class      = "longhorn"
   vault_secret_mount = "secret"

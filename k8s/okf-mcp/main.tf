@@ -1,6 +1,6 @@
 # Namespace + ServiceAccount + Vault auth + secret sync (VSO), mirroring hermes.
 # Vault role/policy/secret are configured out-of-band (see apply notes):
-#   secret/okf-mcp -> { github_token }
+#   secret/okf-mcp -> { gh_app_id, gh_app_installation_id, gh_app_private_key }
 resource "null_resource" "vso" {
   triggers = {
     namespace   = var.namespace
